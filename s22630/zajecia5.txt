@@ -1,0 +1,45 @@
+zad 4.
+
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+ 
+int main() {
+ 
+    int input;
+ 
+    /* scanf("%d", &input); */
+ 
+    pid_t pid = fork();
+ 
+    if(pid > 0) {
+        printf("Rodzic PID: %d\tPPID: %d\n", getpid(), getppid());
+        waitpid(0, &input, 0);
+        printf("Rodzic zakonczyl czekac na swoje dziecko\n");
+        /* rodzic */
+    } else if (pid == 0) {
+        /* dziecko */
+        printf("Dziecko PID: %d\tPPID: %d\n", getpid(), getppid());
+    } else {
+        /* dziecka sie nie udalo utworzyc */
+        printf("Nie udalo sie utworzyc dziecka\n");
+    }
+ 
+    return 0;
+}
+
+zad dom
+
+int main(int argc, char **argv){
+    for(int i = 0; i < 3; i++){      
+        pid_t pid = fork();
+        if(pid == 0){            
+            printf("%d PID: %d\t PPID%d\n", i, getpid(), getppid());    
+            system("pstree");        
+        } else {
+            wait(NULL);
+        }
+    }
+    return 0;
+}

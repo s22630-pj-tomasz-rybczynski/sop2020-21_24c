@@ -1,0 +1,86 @@
+zad 1
+
+#include <stdio.h>
+
+int main() {
+
+    int suma = 0;
+    int input = 0;
+
+    while(scanf("%d\n", &input) > 0) {
+        suma += input;
+    }
+
+    printf("%d\n", suma);
+
+    return suma;
+}
+
+zad 3
+
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(int argc, char** argv) {
+
+    if(argc == 2) {
+        int i;
+        int j;
+        int rowsNumber = atoi(argv[1]);
+        printf("Ilosc wierszy: %d\n", rowsNumber);
+
+        for(i = 0; i < rowsNumber; i++) {
+            for(j = 0; j < rowsNumber - i; j++){
+                printf(" ");
+            }
+
+            for(j = 0; j < i*2 - 1; j++){
+                printf("*");
+            }
+            printf("\n");
+        }
+    }
+
+    return 0;
+}
+
+zad 4.
+
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(int argc, char *argv[]){
+    FILE *f = fopen("plik.txt", "r");
+    int i = 0;
+    int loop;
+    int *liczby;
+
+    if (f == NULL){
+        return 1;
+    }
+
+    fscanf(f, "%d\n", &i);
+    liczby = malloc(i * sizeof(i));
+
+    for(loop = 0; loop < i; loop++) {
+        int a;
+        fscanf(f, "%d\n", &a);
+        liczby[loop] = a;
+    }
+
+    if(f != NULL) {
+        fclose(f);
+    }
+    
+    for(loop = i; loop > 0; --loop) {
+        int a = liczby[loop - 1];
+        printf("%d\n", a);
+    }
+
+    if(liczby != NULL) {
+        free(liczby);
+    }
+
+    return 0;
+}
+
