@@ -1,196 +1,142 @@
-#include <unistd.h>
+Klient:
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
-#include <string.h>
-
-#include <sys/stat.h>
+#include <netinet/in.h>
+#include <netdb.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+
+
+int main(int argc, char *argv[]) {
+
+  struct hostent *server;
+  struct sockaddr_in serv_addr, cli_addr;
+  int sockfd, portno, n;
+  char buffer[256];
+
+  if (argc < 3) {
+    fprintf(stderr, "Usage %s hostname port\n", argv[0]);
+    exit(0);
+  }
+
+  portno = atoi(argv[2]);
+  sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+  if (sockfd < 0) {
+    perror("error opening socket");
+	exit(1)
+  }
+
+  server == gethostbyname(argv[1]);
+
+  if (server == NULL) {
+    fprintf(stderr, "error no such Host\n");
+    exit(0);
+  }
+
+  bzero((char * ) & serv_addr, sizeof(serv_addr));
+  serv_addr.sin_family = AF_INET;
+
+  bcopy((char * ) server -> h_addr,
+    (char * ) & serv_addr.sin_addr.s_addr,
+    server -> h_length);
+
+  serv_addr.sin_port = htons(portno);
+
+  if (connect(sockfd, (struct sockaddr * ) & serv_addr, sizeof(serv_addr)) < 0) {
+    perror("ERROR connecting");
+	exit(1)
+  }
+
+  printf("please enter the message");
+  bzero(buffer, 256);
+  fgets(buffer, 255, stdin);
+
+  n = write(sockfd, buffer, strlen(buffer));
+
+  if (n < 0) {
+    perror("ERROR writing to socket");
+	exit(1)
+  }
+
+  bzero(buffer, 256);
+  n = read(sockfd, buffer, 255);
+
+  if (n < 0) {
+    perror("ERROR reading from socket");
+	exit(1)
+  }
+
+  printf("%s\n", buffer);
+
+  return 0;
+}
+
+
+Serwer:
+
+#include <stdio.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
+#include <stdlib.h>
+#include <sys/types.h>
 
-// constant buffer sizes
-#define L_BUF_SIZE          8000
-#define M_BUF_SIZE          2000
-#define S_BUF_SIZE          500
 
-// constant declarations
-#define DEFAULT_PORT_NO     8000
+int main(int argc, char * argv[]) {
 
-int main(int argc, char *argv[]) 
-{
-    // show both header and content
-    bool showAll = false;
-    char *method, *ip_net, *resource, *host, *httpver = "HTTP/1.1";
-    int portno;
-    struct hostent *hp;
+	int sockfd, newsockfd, portno, clilen, n;
+	struct sockaddr_in serv_addr, cli_addr;
+	char buffer[256];
 
-    if (argc == 1) {
-        fprintf(stderr, "[ERROR] Insufficient arguments\n");
-        fprintf(stderr, "Please follow these format:\n"
-            "myhttp <url>\n"
-            "myhttp -m <method> <url>\n"
-            "myhttp -m <method> -a <url>\n");
-        exit(EXIT_FAILURE);
-    }
-    else if (argc == 2) {
-        // copy the url
-        char url[S_BUF_SIZE];
-        strcpy(url, argv[1]);
+	if (argc < 2) {
+		fprintf(stderr, "Error no port\n");
+		exit(1);
+	}
 
-        // check if url has http://
-        if (strstr(url, "http://") == NULL) {
-            fprintf(stdout, "[ERROR] URL not valid\n");
-            fprintf(stdout, "Please include 'http://' in the URL\n");
-            exit(EXIT_FAILURE);
-        }
+	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
-        // check if last char is '/'
-        int size = strlen(url);
-        if ((strcmp(&url[size-1], "/")) != 0) {
-            url[size] = '/';
-            puts("added /");
-            puts(url);
-        }
+	if (sockfd < 0) {
+		perror("Error opening the socket");
+		exit(1);
+	}
 
-        host = url;
-        host+=7;
+	bzero((char * ) & serv_addr, sizeof(serv_addr));
+	portno = atoi(argv[1]);
+	
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_addr.s_addr = INADDR_ANY;
+	serv_addr.sin_port = htons(portno);
 
-        if ((strstr(host, ":")) == NULL) {
-            portno = DEFAULT_PORT_NO;
-            host = strtok(host, "/");
+	if (bind(sockfd, (struct sockaddr * ) & serv_addr, sizeof(serv_addr)) < 0) {
+		perror("Error on binding");
+		exit(1);
+	}
 
-            if ((resource = strtok(NULL, "")) == NULL) {
-                resource = "/";
-            }
-        }
-        else {
-            host = strtok(host, ":");
-            char *p = strtok(NULL, "/");
-            portno = atoi(p);
+	listen(sockfd, 5);
+	clilen = sizeof(cli_addr);
+	newsockfd = accept(sockfd, (struct sockaddr * ) & cli_addr, & clilen);
 
-            if ((resource = strtok(NULL, "")) == NULL) {
-                resource = "/"; 
-            }
-        }
+	if (newsockfd < 0) {
+		perror("Error on accept");
+		exit(1);
+	}
 
-        method = "get";
-        showAll = false;
-    }
-    else if (argc > 3) {
-        // assign to first element
-        int next = 1; 
-        // validate -m
-        if (strcasecmp(argv[next], "-m") == 0) {
-            ++next;
-            method = argv[next];
-        }
+	bzero(buffer, 256);
+	n = read(newsockfd, buffer, 255);
 
-        // validate -a
-        ++next;
-        if (strcasecmp(argv[next], "-a") == 0) {
-            showAll = true;
-            ++next;
-        }
+	if (n < 0) {
+		perror("Error on reading from socket");
+		exit(1);
+	}
 
-        // copy the url
-        char url[S_BUF_SIZE];
-        strcpy(url, argv[next]);
+	printf("Message %s\n", buffer);
+	n = write(newsockfd, "Received your message", 18);
 
-        // check if url has http://
-        if (strstr(url, "http://") == NULL) {
-            fprintf(stdout, "[ERROR] URL not valid\n");
-            fprintf(stdout, "Please include 'http://' in the URL\n");
-            exit(EXIT_FAILURE);
-        }
+	if (n < 0) {
+		perror("Error on writing to socket");
+		exit(1);
+	}
 
-        // check if last char is '/'
-        int size = strlen(url);
-        if ((strcmp(&url[size-1], "/")) != 0) {
-            url[size] = '/';
-        }
-
-        host = url;
-        host+=7;
-
-        if ((strstr(host, ":")) == NULL) {
-            portno = DEFAULT_PORT_NO;
-            host = strtok(host, "/");
-
-            if ((resource = strtok(NULL, "")) == NULL) {
-                resource = "/";
-            }
-        }
-        else {
-            host = strtok(host, ":");
-            char *p = strtok(NULL, "/");
-            portno = atoi(p);
-
-            if ((resource = strtok(NULL, "")) == NULL) {
-                resource = "/"; 
-            }
-        }
-    } // end argc check
-
-    // build address socket
-    struct sockaddr_in ser_addr, cli_addr;
-    bzero((char *) &ser_addr, sizeof(ser_addr));
-    ser_addr.sin_family = AF_INET;
-    ser_addr.sin_port = htons(portno);
-    if ((hp = gethostbyname(host)) == NULL) {
-        fprintf(stderr, "[ERROR] Host %s not found\n", host);
-        exit(EXIT_FAILURE);
-    }
-    ser_addr.sin_addr.s_addr = *(u_long *) hp->h_addr;
-
-    // create socket
-    int sd;
-    if ((sd = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
-        perror("[ERROR] Create socket fail");
-        exit(EXIT_FAILURE);
-    }
-    
-    /* create TCP socket & connect socket to server address */
-    sd = socket(PF_INET, SOCK_STREAM, 0);
-    if (connect(sd, (struct sockaddr *) &ser_addr, sizeof(ser_addr))<0) { 
-        perror("[ERROR] Connect fail");
-        exit(EXIT_FAILURE);
-    }
-    
-    // variables to store request and response message
-    int nread, nwrite;
-    char response[L_BUF_SIZE];
-    char request[L_BUF_SIZE];
-
-    // construct request message
-    sprintf(request, "%s %s %s\n"
-        "Content-Type: text/plain\nContent-Length: 0", 
-        method, resource, httpver);
-    
-    // write to server
-    nwrite = write(sd, request, sizeof(request));
-    fprintf(stdout, "[REQUEST SENT]\nmethod=%s\nresource=%s\n", 
-        method, resource);
-
-    // read from server
-    nread = read(sd, response, L_BUF_SIZE); 
-    response[nread] = '\0';
-
-    // reconstruct response message for displaying to user
-    char *body;
-    if (showAll) {
-        fprintf(stdout, "\n[RESPONSE RECEIVED]\n%s", response);
-    }
-    else {
-        if ((body = strstr(response, "\n\n")) != NULL) {
-            body+=2;
-            fprintf(stdout, "\n[RESPONSE RECEIVED]\n%s", body);
-        }
-        else {
-            fprintf(stdout, "\n[RESPONSE RECEIVED]\n%s", response);    
-        }
-    }
-    exit(EXIT_SUCCESS);
+	return 0;
 }
